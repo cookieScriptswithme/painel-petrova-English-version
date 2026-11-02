@@ -1,0 +1,1122 @@
+--[[
+MM2 SCRIPTS PANEL - Petrova
+✅ Delta NO KEY | DIRECT CODE
+✅ CROSSHAIR FROM YOUR REPO ON BUTTON 27 ⚪
+✅ SPEED / SPEED CNP CONFIGURED IN THE PANEL 🚀
+✅ EXTRA CNP ON BUTTON 29 🌸
+]]
+
+local Players = game:GetService("Players")
+local SoundService = game:GetService("SoundService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local NetworkSettings = settings():GetService("NetworkSettings")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = Workspace.CurrentCamera
+
+-- ==========================================
+-- COLORS
+-- ==========================================
+local DISABLED = Color3.fromRGB(200, 50, 50) -- 🔴 Red
+local ENABLED  = Color3.fromRGB(46, 139, 87) -- 🟢 Green
+
+-- ==========================================
+-- MAIN SCREEN
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ControlPanelGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+if playerGui:FindFirstChild("ControlPanelGui") and playerGui.ControlPanelGui ~= screenGui then
+    playerGui.ControlPanelGui:Destroy()
+end
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 350) -- fixed height to fit on screen
+mainFrame.Position = UDim2.new(0.5, -110, 0.5, -175)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -35, 0, 35)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Painel Petrova MM2"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = mainFrame
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+minimizeBtn.BackgroundColor3 = DISABLED
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.Text = "-"
+minimizeBtn.Font = Enum.Font.SourceSansBold
+minimizeBtn.TextSize = 18
+minimizeBtn.Parent = mainFrame
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 6)
+
+-- ==========================================
+-- SCROLLING FRAME + AUTOMATIC CANVAS
+-- ==========================================
+local contentFrame = Instance.new("ScrollingFrame")
+contentFrame.Size = UDim2.new(1, 0, 1, -35)
+contentFrame.Position = UDim2.new(0, 0, 0, 35)
+contentFrame.BackgroundTransparency = 1
+contentFrame.BorderSizePixel = 0
+contentFrame.ScrollBarThickness = 6
+contentFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y -- auto-adjusts scrolling
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+contentFrame.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Parent = contentFrame
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 5)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local listPadding = Instance.new("UIPadding")
+listPadding.Parent = contentFrame
+listPadding.PaddingTop = UDim.new(0, 5)
+listPadding.PaddingBottom = UDim.new(0, 5)
+
+local panelOpen = true
+minimizeBtn.MouseButton1Click:Connect(function()
+    panelOpen = not panelOpen
+    minimizeBtn.Text = panelOpen and "-" or "+"
+    mainFrame.Size = panelOpen and UDim2.new(0, 220, 0, 350) or UDim2.new(0, 220, 0, 35)
+    contentFrame.Visible = panelOpen
+end)
+
+local function createButton(name)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 38)
+    btn.BackgroundColor3 = DISABLED
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = name .. ": Disabled"
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 15
+    btn.Parent = contentFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
+
+-- ==========================================
+-- 1️⃣ OLD ANIMATION
+-- ==========================================
+-- Forces the old (R6-style) animation retargeting behavior
+local btnOldAnim = createButton("Old Animation")
+local oldAnimEnabled = false
+btnOldAnim.MouseButton1Click:Connect(function()
+    oldAnimEnabled = not oldAnimEnabled
+    game.Workspace.Retargeting = oldAnimEnabled and Enum.AnimatorRetargetingMode.Disabled or Enum.AnimatorRetargetingMode.Default
+    btnOldAnim.Text = oldAnimEnabled and "Old Animation: Enabled" or "Old Animation: Disabled"
+    btnOldAnim.BackgroundColor3 = oldAnimEnabled and ENABLED or DISABLED
+end)
+
+-- ==========================================
+-- 2️⃣ CANNON SPEED
+-- ==========================================
+-- High-speed movement system. Massless body, tracks avg position, propels character.
+local btnSpeed = createButton("Cannon Speed")
+local speedEnabled = false
+local speedConnections = {}
+local function startSpeedSystem()
+    local LocalPlayer = Players.LocalPlayer
+    local v1, v2, v3 = nil, nil, nil
+    local v4, v5, v6, v7 = 0, false, true, 0
+    local WATER_JUMP_FORCE = 150
+
+    local function handleAntiCoin(object)
+        pcall(function()
+            if object.Name == "Coin" or object.Name == "CoinContainer" or object:FindFirstChild("CoinVisual") then
+                if object:IsA("BasePart") then object.CanTouch = false end
+                for _, child in ipairs(object:GetDescendants()) do
+                    if child:IsA("BasePart") then child.CanTouch = false end
+                end
+            end
+        end)
+    end
+
+    task.spawn(function()
+        pcall(function()
+            for _, desc in ipairs(Workspace:GetDescendants()) do handleAntiCoin(desc) end
+            speedConnections[#speedConnections+1] = Workspace.DescendantAdded:Connect(handleAntiCoin)
+        end)
+    end)
+
+    local function getAveragePosition(p1)
+        local sum, count = Vector3.new(0,0,0), 0
+        for _, v in ipairs(p1:GetDescendants()) do
+            if v:IsA("BasePart") and not v.Anchored and v.Name ~= "TrackerPart" and not v:FindFirstAncestorOfClass("Tool") then
+                sum += v.Position; count += 1
+            end
+        end
+        return count == 0 and v2.Position or sum / count
+    end
+
+    local function zeroOutCharacterMass()
+        if not v1 then return end
+        for _, v in ipairs(v1:GetDescendants()) do
+            if v:IsA("BasePart") and v ~= v3 and not v:FindFirstAncestorOfClass("Tool") then
+                v.CustomPhysicalProperties = PhysicalProperties.new(0.2, 0.3, 0.5, 1, 1)
+            end
+        end
+    end
+
+    local function waitForMass(part)
+        local count = 0
+        while part.AssemblyMass < 0.01 and count < 40 do task.wait(0.1); count += 1 end
+        return part.AssemblyMass
+    end
+
+    local function updateTracker()
+        if not v6 or not v1 or not v2 then return end
+        if not v3 or not v3.Parent then
+            local TrackerPart = Instance.new("Part")
+            TrackerPart.Name = "TrackerPart"
+            TrackerPart.Size = Vector3.new(2,2,2)
+            TrackerPart.Transparency = 1
+            TrackerPart.CanCollide = false
+            TrackerPart.Anchored = false
+            TrackerPart.Parent = v1
+            local WeldConstraint = Instance.new("WeldConstraint")
+            WeldConstraint.Part0 = TrackerPart
+            WeldConstraint.Part1 = v2
+            WeldConstraint.Parent = TrackerPart
+            v3 = TrackerPart
+        end
+        local avgPos = getAveragePosition(v1)
+        v3.Position = avgPos + (avgPos - v2.Position) * 0.35
+        zeroOutCharacterMass()
+        local volume = v3.Size.X * v3.Size.Y * v3.Size.Z
+        v3.CustomPhysicalProperties = PhysicalProperties.new(
+            math.clamp((volume > 0 and v4 / volume or 1), 0.1, 35), 0.3, 0.5, 1, 1
+        )
+    end
+
+    local function safeUpdate()
+        if not v6 then return end
+        local now = os.clock()
+        if now - v7 < 0.2 then return end
+        v7 = now
+        task.defer(updateTracker)
+    end
+
+    local function onCharacter(character)
+        v1 = character
+        if v3 then pcall(function() v3:Destroy() end); v3 = nil end
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        local root = character:WaitForChild("HumanoidRootPart", 5)
+        if not humanoid or not root then return end
+        local swimming = false
+        speedConnections[#speedConnections+1] = humanoid.StateChanged:Connect(function(old, new)
+            swimming = new == Enum.HumanoidStateType.Swimming
+            if old == Enum.HumanoidStateType.Swimming and new == Enum.HumanoidStateType.Jumping then
+                pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Freefall) end)
+            end
+        end)
+        speedConnections[#speedConnections+1] = UserInputService.JumpRequest:Connect(function()
+            pcall(function()
+                if swimming and root then
+                    root.AssemblyLinearVelocity = Vector3.new(
+                        root.AssemblyLinearVelocity.X, WATER_JUMP_FORCE, root.AssemblyLinearVelocity.Z
+                    )
+                end
+            end)
+        end)
+        task.delay(1, function()
+            if not v1 or v1 ~= character then return end
+            v2 = root; v5 = true; v4 = waitForMass(v2)
+            pcall(updateTracker)
+            speedConnections[#speedConnections+1] = character.DescendantAdded:Connect(function(obj)
+                if not obj:FindFirstAncestorOfClass("Tool") then safeUpdate() end
+            end)
+            speedConnections[#speedConnections+1] = character.DescendantRemoving:Connect(function(obj)
+                if not obj:FindFirstAncestorOfClass("Tool") then safeUpdate() end
+            end)
+        end)
+    end
+
+    speedConnections[#speedConnections+1] = LocalPlayer.CharacterAdded:Connect(function(char)
+        pcall(onCharacter, char)
+    end)
+    if LocalPlayer.Character then task.spawn(function() pcall(onCharacter, LocalPlayer.Character) end) end
+end
+
+local function stopSpeedSystem()
+    for _, conn in ipairs(speedConnections) do if conn then conn:Disconnect() end end
+    speedConnections = {}
+end
+
+btnSpeed.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    btnSpeed.Text = speedEnabled and "Cannon Speed: Enabled" or "Cannon Speed: Disabled"
+    btnSpeed.BackgroundColor3 = speedEnabled and ENABLED or DISABLED
+    if speedEnabled then startSpeedSystem() else stopSpeedSystem() end
+end)
+
+-- ==========================================
+-- 3️⃣ SPEED STONE
+-- ==========================================
+local btnSpeedStone = createButton("Speed Stone")
+local speedStoneEnabled = false
+btnSpeedStone.MouseButton1Click:Connect(function()
+    speedStoneEnabled = not speedStoneEnabled
+    btnSpeedStone.Text = speedStoneEnabled and "Speed Stone: Enabled" or "Speed Stone: Disabled"
+    btnSpeedStone.BackgroundColor3 = speedStoneEnabled and ENABLED or DISABLED
+    if speedStoneEnabled then
+        loadstring(game:HttpGet("https://rawgithubusercontent.com/LiarRise/Speed/refs/heads/main/README.md"))()
+    end
+end)
+
+-- ==========================================
+-- 4️⃣ OLD WEAPON
+-- ==========================================
+-- Stops action-priority animations (removes gun reload/hold animations)
+local btnWeapon = createButton("Old Weapon")
+local weaponEnabled = false
+local thursGui = nil
+btnWeapon.MouseButton1Click:Connect(function()
+    weaponEnabled = not weaponEnabled
+    btnWeapon.Text = weaponEnabled and "Old Weapon: Enabled" or "Old Weapon: Disabled"
+    btnWeapon.BackgroundColor3 = weaponEnabled and ENABLED or DISABLED
+    if weaponEnabled then
+        local plr = Players.LocalPlayer
+        local enabled = true
+        thursGui = Instance.new("ScreenGui")
+        thursGui.Name = "_thurs4x"
+        thursGui.Parent = game.CoreGui
+        local frame = Instance.new("Frame")
+        frame.Parent = thursGui
+        frame.Size = UDim2.new(0,120,0,28)
+        frame.Position = UDim2.new(0.72,0,0.08,0)
+        frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+        frame.BackgroundTransparency = 0.15
+        frame.Active = true
+        frame.Draggable = true
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(1,0)
+        local title = Instance.new("TextLabel")
+        title.Parent = frame
+        title.BackgroundTransparency = 1
+        title.Position = UDim2.new(0.06,0,0,0)
+        title.Size = UDim2.new(0,60,1,0)
+        title.Font = Enum.Font.GothamBold
+        title.Text = "_thurs4x"
+        title.TextScaled = true
+        title.TextColor3 = Color3.fromRGB(255,255,255)
+        local toggle = Instance.new("TextButton")
+        toggle.Parent = frame
+        toggle.Size = UDim2.new(0,40,0,18)
+        toggle.Position = UDim2.new(0.63,0,0.18,0)
+        toggle.BackgroundColor3 = Color3.fromRGB(0,255,120)
+        toggle.Font = Enum.Font.GothamBold
+        toggle.Text = "ON"
+        toggle.TextScaled = true
+        toggle.TextColor3 = Color3.fromRGB(255,255,255)
+        Instance.new("UICorner", toggle).CornerRadius = UDim.new(1,0)
+        local function setup(char)
+            local hum = char:WaitForChild("Humanoid")
+            hum.AnimationPlayed:Connect(function(track)
+                if enabled and track.Priority == Enum.AnimationPriority.Action then
+                    task.wait()
+                    pcall(function() track:Stop() end)
+                end
+            end)
+        end
+        if plr.Character then setup(plr.Character) end
+        plr.CharacterAdded:Connect(setup)
+        toggle.MouseButton1Click:Connect(function()
+            enabled = not enabled
+            toggle.Text = enabled and "ON" or "OFF"
+            toggle.BackgroundColor3 = enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,70,70)
+        end)
+    else
+        if thursGui then thursGui:Destroy() thursGui = nil end
+    end
+end)
+
+-- ==========================================
+-- 5️⃣ ORIGINAL GOLDEN BOMB 💛
+-- ==========================================
+local btnBomb = createButton("Golden Bomb")
+local bombEnabled = false
+btnBomb.MouseButton1Click:Connect(function()
+    bombEnabled = not bombEnabled
+    btnBomb.Text = bombEnabled and "Golden Bomb: Enabled" or "Golden Bomb: Disabled"
+    btnBomb.BackgroundColor3 = bombEnabled and ENABLED or DISABLED
+    if bombEnabled then
+        loadstring(game:HttpGet("https://tinyurl.com/BombGoldLoader"))()
+    end
+end)
+
+-- ==========================================
+-- 6️⃣ EMOTE TOOL
+-- ==========================================
+local btnEmote = createButton("Emote Tool")
+local emoteEnabled = false
+btnEmote.MouseButton1Click:Connect(function()
+    emoteEnabled = not emoteEnabled
+    btnEmote.Text = emoteEnabled and "Emote Tool: Enabled" or "Emote Tool: Disabled"
+    btnEmote.BackgroundColor3 = emoteEnabled and ENABLED or DISABLED
+    if emoteEnabled then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ZoeWarOnTop/Emote-Tool/refs/heads/main/Emotes%20Tool"))()
+    end
+end)
+
+-- ==========================================
+-- 7️⃣ HEADLESS
+-- ==========================================
+local btnHeadless = createButton("Headless")
+local headlessEnabled = false
+btnHeadless.MouseButton1Click:Connect(function()
+    headlessEnabled = not headlessEnabled
+    btnHeadless.Text = headlessEnabled and "Headless: Enabled" or "Headless: Disabled"
+    btnHeadless.BackgroundColor3 = headlessEnabled and ENABLED or DISABLED
+    if headlessEnabled then
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Headless-anh-idk-238257"))()
+    end
+end)
+
+-- ==========================================
+-- 8️⃣ OLD SHIFT
+-- ==========================================
+-- Shifts camera offset when RMB is held (classic shift-lock look)
+local btnOldShift = createButton("Old Shift")
+local oldShiftEnabled = false
+local shiftConn = nil
+btnOldShift.MouseButton1Click:Connect(function()
+    oldShiftEnabled = not oldShiftEnabled
+    btnOldShift.Text = oldShiftEnabled and "Old Shift: Enabled" or "Old Shift: Disabled"
+    btnOldShift.BackgroundColor3 = oldShiftEnabled and ENABLED or DISABLED
+    if oldShiftEnabled then
+        shiftConn = RunService.RenderStepped:Connect(function()
+            local char = player.Character
+            if not char or not char:FindFirstChild("Humanoid") then return end
+            char.Humanoid.CameraOffset = UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter 
+                and Vector3.new(0.9,1.1,0) or Vector3.new(0,0,0)
+        end)
+    else
+        if shiftConn then shiftConn:Disconnect() end
+    end
+end)
+
+-- ==========================================
+-- 9️⃣ OLD CAMERA
+-- ==========================================
+local btnCameraOld = createButton("Old Camera")
+local cameraOldEnabled = false
+local camConn = nil
+btnCameraOld.MouseButton1Click:Connect(function()
+    cameraOldEnabled = not cameraOldEnabled
+    btnCameraOld.Text = cameraOldEnabled and "Old Camera: Enabled" or "Old Camera: Disabled"
+    btnCameraOld.BackgroundColor3 = cameraOldEnabled and ENABLED or DISABLED
+    if cameraOldEnabled then
+        camConn = RunService.RenderStepped:Connect(function()
+            if (camera.Focus.Position - camera.CFrame.Position).Magnitude > 1 then
+                camera.CFrame += Vector3.new(0, 0.3, 0)
+            end
+        end)
+    else
+        if camConn then camConn:Disconnect() end
+    end
+end)
+
+-- ==========================================
+-- 🔟 CONFETTI / LAG
+-- ==========================================
+-- Press Y to lag incoming/outgoing replication for 1.5s (classic lag switch)
+local btnConfetti = createButton("Confetti/Lag")
+local confettiEnabled = false
+btnConfetti.MouseButton1Click:Connect(function()
+    confettiEnabled = not confettiEnabled
+    btnConfetti.Text = confettiEnabled and "Confetti/Lag: Enabled" or "Confetti/Lag: Disabled"
+    btnConfetti.BackgroundColor3 = confettiEnabled and ENABLED or DISABLED
+end)
+UserInputService.InputBegan:Connect(function(i,p)
+    if not p and i.KeyCode == Enum.KeyCode.Y and confettiEnabled then
+        pcall(function()
+            NetworkSettings.IncomingReplicationLag = 5
+            NetworkSettings.OutgoingReplicationLag = 5
+            task.delay(1.5, function()
+                NetworkSettings.IncomingReplicationLag = 0
+                NetworkSettings.OutgoingReplicationLag = 0
+            end)
+        end)
+    end
+end)
+
+-- ==========================================
+-- 1️⃣1️⃣ ANTI-COIN
+-- ==========================================
+local btnAntiCoin = createButton("Anti-Coin")
+local antiCoinEnabled = false
+btnAntiCoin.MouseButton1Click:Connect(function()
+    antiCoinEnabled = not antiCoinEnabled
+    btnAntiCoin.Text = antiCoinEnabled and "Anti-Coin: Enabled" or "Anti-Coin: Disabled"
+    btnAntiCoin.BackgroundColor3 = antiCoinEnabled and ENABLED or DISABLED
+end)
+
+-- ==========================================
+-- 1️⃣2️⃣ CUSTOM SKY
+-- ==========================================
+local btnSky = createButton("Custom Sky")
+local skyEnabled = false
+local skyOriginal = {Ambient=Lighting.Ambient, OutdoorAmbient=Lighting.OutdoorAmbient, Brightness=Lighting.Brightness}
+btnSky.MouseButton1Click:Connect(function()
+    skyEnabled = not skyEnabled
+    btnSky.Text = skyEnabled and "Custom Sky: Enabled" or "Custom Sky: Disabled"
+    btnSky.BackgroundColor3 = skyEnabled and ENABLED or DISABLED
+    if skyEnabled then
+        Lighting.Ambient = Color3.fromRGB(100,80,150)
+        Lighting.OutdoorAmbient = Color3.fromRGB(120,90,180)
+        Lighting.Brightness = 2.5
+        local Sky = Lighting:FindFirstChild("Sky") or Instance.new("Sky", Lighting)
+        Sky.SkyColor = Color3.fromRGB(70,30,120)
+        Sky.SkyGradient = Color3.fromRGB(138,43,226)
+        Sky.CloudColor = Color3.fromRGB(200,160,255)
+        Sky.CloudsEnabled = true
+    else
+        Lighting.Ambient = skyOriginal.Ambient
+        Lighting.OutdoorAmbient = skyOriginal.OutdoorAmbient
+        Lighting.Brightness = skyOriginal.Brightness
+        if Lighting:FindFirstChild("Sky") then Lighting.Sky:Destroy() end
+    end
+end)
+
+-- ==========================================
+-- 1️⃣3️⃣ EQUALIZER
+-- ==========================================
+-- Loads an external audio muffler / filter script
+local btnEqualizer = createButton("Equalizer")
+local equalizerEnabled = false
+btnEqualizer.MouseButton1Click:Connect(function()
+    equalizerEnabled = not equalizerEnabled
+    btnEqualizer.Text = equalizerEnabled and "Equalizer: Enabled" or "Equalizer: Disabled"
+    btnEqualizer.BackgroundColor3 = equalizerEnabled and ENABLED or DISABLED
+    if equalizerEnabled then
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ZoeWarOnTop/Abafador-By-Zoewar/refs/heads/main/Equalizador-Zoewar"))()
+    end
+end)
+
+-- ==========================================
+-- 1️⃣5️⃣ SOUND GUN
+-- ==========================================
+-- Plays a sound when a Gun tool is added to your character
+local btnSoundGun = createButton("Sound Gun")
+local soundGunEnabled = false
+local actionSound = nil
+btnSoundGun.MouseButton1Click:Connect(function()
+    soundGunEnabled = not soundGunEnabled
+    btnSoundGun.Text = soundGunEnabled and "Sound Gun: Enabled" or "Sound Gun: Disabled"
+    btnSoundGun.BackgroundColor3 = soundGunEnabled and ENABLED or DISABLED
+    if soundGunEnabled and not actionSound then
+        actionSound = Instance.new("Sound", SoundService)
+        actionSound.SoundId = "rbxassetid://6968135315"
+        actionSound.Volume = 1
+    elseif actionSound then
+        actionSound:Destroy()
+        actionSound = nil
+    end
+end)
+player.CharacterAdded:Connect(function(char)
+    char.ChildAdded:Connect(function(c)
+        if soundGunEnabled and c:IsA("Tool") and c.Name == "Gun" and actionSound then
+            actionSound:Play()
+        end
+    end)
+end)
+
+-- ==========================================
+-- 1️⃣6️⃣ ANTI-FLING
+-- ==========================================
+local btnFling = createButton("Anti-Fling")
+local flingEnabled = false
+btnFling.MouseButton1Click:Connect(function()
+    flingEnabled = not flingEnabled
+    btnFling.Text = flingEnabled and "Anti-Fling: Enabled" or "Anti-Fling: Disabled"
+    btnFling.BackgroundColor3 = flingEnabled and ENABLED or DISABLED
+    if flingEnabled then
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-anti-fling-script-241540"))()
+    end
+end)
+
+-- ==========================================
+-- 1️⃣7️⃣ ANTI-CLICK + NO RELOAD
+-- ==========================================
+-- Disables the equipped tool (anti-click) and clears reload timers
+local btnAntiClick = createButton("Anti-Click + No Reload")
+local antiClickEnabled = false
+local antiClickGui = nil
+
+btnAntiClick.MouseButton1Click:Connect(function()
+    antiClickEnabled = not antiClickEnabled
+    btnAntiClick.Text = antiClickEnabled and "Anti-Click: OPEN" or "Anti-Click: CLOSED"
+    btnAntiClick.BackgroundColor3 = antiClickEnabled and ENABLED or DISABLED
+
+    if antiClickEnabled then
+        antiClickGui = Instance.new("ScreenGui")
+        antiClickGui.Name = "Petrova_Hub"
+        antiClickGui.ResetOnSpawn = false
+        antiClickGui.Parent = playerGui
+
+        local frame = Instance.new("Frame", antiClickGui)
+        frame.Size = UDim2.new(0, 220, 0, 150)
+        frame.Position = UDim2.new(0.5, -110, 0.4, 0)
+        frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        frame.BorderSizePixel = 2
+        frame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+        frame.Active = true
+        frame.Draggable = true 
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+        local title = Instance.new("TextLabel", frame)
+        title.Size = UDim2.new(1, 0, 0, 35)
+        title.Position = UDim2.new(0, 0, 0, 0)
+        title.Text = "PETROVA SUPREMACY"
+        title.TextColor3 = Color3.new(1, 1, 1)
+        title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 14
+
+        local btnAnti = Instance.new("TextButton", frame)
+        btnAnti.Size = UDim2.new(0.9, 0, 0, 35)
+        btnAnti.Position = UDim2.new(0.05, 0, 0.3, 0)
+        btnAnti.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        btnAnti.Text = "ANTI-CLICK: OFF"
+        btnAnti.TextColor3 = Color3.new(1, 1, 1)
+        btnAnti.Font = Enum.Font.SourceSansBold
+        btnAnti.TextSize = 16
+        Instance.new("UICorner", btnAnti).CornerRadius = UDim.new(0, 8)
+
+        local btnReload = Instance.new("TextButton", frame)
+        btnReload.Size = UDim2.new(0.9, 0, 0, 35)
+        btnReload.Position = UDim2.new(0.05, 0, 0.65, 0)
+        btnReload.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        btnReload.Text = "NO RELOAD: OFF"
+        btnReload.TextColor3 = Color3.new(1, 1, 1)
+        btnReload.Font = Enum.Font.SourceSansBold
+        btnReload.TextSize = 16
+        Instance.new("UICorner", btnReload).CornerRadius = UDim.new(0, 8)
+
+        local antiClickActive = false
+        local noReloadActive = false
+        local loopConnection = nil
+
+        btnAnti.MouseButton1Click:Connect(function()
+            antiClickActive = not antiClickActive
+            btnAnti.Text = antiClickActive and "ANTI-CLICK: ON" or "ANTI-CLICK: OFF"
+            btnAnti.BackgroundColor3 = antiClickActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(50, 50, 50)
+        end)
+
+        btnReload.MouseButton1Click:Connect(function()
+            noReloadActive = not noReloadActive
+            btnReload.Text = noReloadActive and "NO RELOAD: ON" or "NO RELOAD: OFF"
+            btnReload.BackgroundColor3 = noReloadActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(50, 50, 50)
+        end)
+
+        loopConnection = RunService.RenderStepped:Connect(function()
+            local char = player.Character
+            if not char then return end
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                if antiClickActive then
+                    tool.Enabled = false
+                    for _, v in pairs(tool:GetDescendants()) do
+                        if v:IsA("BasePart") then v.CanTouch = false end
+                    end
+                else
+                    tool.Enabled = true
+                end
+                if noReloadActive then
+                    for _, obj in pairs(tool:GetDescendants()) do
+                        if obj.Name == "Reloading" or obj.Name == "Debounce" or obj.Name == "Delay" then
+                            if obj:IsA("BoolValue") then obj.Value = false end
+                            if obj:IsA("NumberValue") then obj.Value = 0 end
+                        end
+                    end
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        for _, anim in pairs(hum:GetPlayingAnimationTracks()) do
+                            if string.find(string.lower(anim.Name), "reload") then anim:Stop() end
+                        end
+                    end
+                end
+            end
+        end)
+
+        antiClickGui.Destroying:Connect(function()
+            if loopConnection then loopConnection:Disconnect() end
+        end)
+    else
+        if antiClickGui then antiClickGui:Destroy() antiClickGui = nil end
+    end
+end)
+
+-- ==========================================
+-- 1️⃣8️⃣ FAST KNIFE
+-- ==========================================
+local btnKnife = createButton("Fast Knife")
+local knifeEnabled = false
+btnKnife.MouseButton1Click:Connect(function()
+    knifeEnabled = not knifeEnabled
+    btnKnife.Text = knifeEnabled and "Fast Knife: Enabled" or "Fast Knife: Disabled"
+    btnKnife.BackgroundColor3 = knifeEnabled and ENABLED or DISABLED
+    if knifeEnabled then
+        loadstring(game:HttpGet("https://pastefy.app/GyghlYOG/raw"))()
+    end
+end)
+
+-- ==========================================
+-- 🚀 SPEED CNP (DIRECTLY INTEGRATED)
+-- ==========================================
+-- Adds a massless weighted object behind the player, boosts back-pedal + water jump
+local btnSpeedCNP = createButton("Speed CNP")
+local speedCNPEnabled = false
+
+local offsetAmount = Vector3.new(0, 0, 5.2) 
+local weightMass = 20.6
+local weightName = "CoMWeight_Object"
+local lastJumpBoostTime = 0
+local currentRotSpeed = 0
+local lastLook = camera.CFrame.LookVector
+local speedCNPConnections = {}
+
+local function applyWeight(character)
+    local root = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
+    if not root then return end
+
+    local existing = character:FindFirstChild(weightName)
+    if existing then existing:Destroy() end
+
+    local weight = Instance.new("Part")
+    weight.Name = weightName
+    weight.Size = Vector3.new(1, 1, 1)
+    weight.Transparency = 1 
+    weight.CanCollide = false
+    weight.CanQuery = false
+    weight.Parent = character
+
+    local weld = Instance.new("Weld")
+    weld.Part0 = root
+    weld.Part1 = weight
+    weld.C0 = CFrame.new(offsetAmount) 
+    weld.Parent = weight
+
+    weight.Massless = false
+    weight.CustomPhysicalProperties = PhysicalProperties.new(weightMass, 0.3, 0.5)
+end
+
+local function isReallyInWater(humanoid, root)
+    if not humanoid or not root then return false end
+    if humanoid:GetState() == Enum.HumanoidStateType.Swimming then return true end
+    if humanoid.FloorMaterial == Enum.Material.Water then return true end
+    return false
+end
+
+local function tryWaterJumpBoost()
+    if not speedCNPEnabled then return end
+    local character = player.Character
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not root or not humanoid then return end
+
+    if not isReallyInWater(humanoid, root) then return end
+
+    local now = tick()
+    if now - lastJumpBoostTime < 0.5 then return end
+    lastJumpBoostTime = now
+
+    local baseBoost = 29
+    local flickBonus = math.clamp(currentRotSpeed * 1.35, 0, 16)
+    local totalBoost = baseBoost + flickBonus
+
+    local vel = root.AssemblyLinearVelocity
+    root.AssemblyLinearVelocity = Vector3.new(vel.X, math.max(vel.Y, 0) + totalBoost, vel.Z)
+end
+
+btnSpeedCNP.MouseButton1Click:Connect(function()
+    speedCNPEnabled = not speedCNPEnabled
+    btnSpeedCNP.Text = speedCNPEnabled and "Speed CNP: Enabled" or "Speed CNP: Disabled"
+    btnSpeedCNP.BackgroundColor3 = speedCNPEnabled and ENABLED or DISABLED
+
+    if speedCNPEnabled then
+        local char = player.Character
+        if char then applyWeight(char) end
+
+        speedCNPConnections[#speedCNPConnections+1] = RunService.RenderStepped:Connect(function(dt)
+            if not speedCNPEnabled then return end
+            local cam = workspace.CurrentCamera
+            local currentLook = cam.CFrame.LookVector
+            currentRotSpeed = (currentLook - lastLook).Magnitude / math.max(dt, 0.001)
+            lastLook = currentLook
+
+            local character = player.Character
+            if not character then return end
+            local root = character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if not root or not humanoid then return end
+
+            local moveDir = humanoid.MoveDirection
+            if moveDir.Magnitude > 0.1 then
+                local isMovingBack = moveDir:Dot(currentLook) < -0.35
+                if isMovingBack and currentRotSpeed > 8 then
+                    local boostPower = math.clamp(currentRotSpeed * 1.15, 0, 52)
+                    root.AssemblyLinearVelocity = root.AssemblyLinearVelocity + (moveDir.Unit * boostPower * dt * 42)
+                end
+            end
+        end)
+
+        speedCNPConnections[#speedCNPConnections+1] = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed or not speedCNPEnabled then return end
+            if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.ButtonA then
+                tryWaterJumpBoost()
+            end
+        end)
+
+        speedCNPConnections[#speedCNPConnections+1] = player.CharacterAdded:Connect(function(newChar)
+            if speedCNPEnabled then
+                task.wait(0.1)
+                applyWeight(newChar)
+                local hum = newChar:WaitForChild("Humanoid", 5)
+                if hum then
+                    hum.StateChanged:Connect(function(oldState, newState)
+                        if oldState == Enum.HumanoidStateType.Swimming and 
+                           (newState == Enum.HumanoidStateType.Jumping or newState == Enum.HumanoidStateType.Freefall) then
+                            tryWaterJumpBoost()
+                        end
+                    end)
+                end
+            end
+        end)
+
+        if player.Character then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                speedCNPConnections[#speedCNPConnections+1] = hum.StateChanged:Connect(function(oldState, newState)
+                    if oldState == Enum.HumanoidStateType.Swimming and 
+                       (newState == Enum.HumanoidStateType.Jumping or newState == Enum.HumanoidStateType.Freefall) then
+                        tryWaterJumpBoost()
+                    end
+                end)
+            end
+        end
+    else
+        for _, conn in ipairs(speedCNPConnections) do
+            if conn then conn:Disconnect() end
+        end
+        speedCNPConnections = {}
+
+        local char = player.Character
+        if char then
+            local existing = char:FindFirstChild(weightName)
+            if existing then existing:Destroy() end
+        end
+    end
+end)
+
+-- ==========================================
+-- 1️⃣9️⃣ WEAPON EDITOR
+-- ==========================================
+-- THIS is the one you care about. Moves the tool's grip C0 in 0.2-stud steps.
+-- Same client-side limitation: only you see it.
+local btnWeaponEditor = createButton("Weapon Editor")
+local weaponEditorEnabled = false
+local weaponGui = nil
+btnWeaponEditor.MouseButton1Click:Connect(function()
+    weaponEditorEnabled = not weaponEditorEnabled
+    btnWeaponEditor.Text = weaponEditorEnabled and "Weapon Editor: Enabled" or "Weapon Editor: Disabled"
+    btnWeaponEditor.BackgroundColor3 = weaponEditorEnabled and ENABLED or DISABLED
+    if weaponEditorEnabled then
+        local MOVE_STEP = 0.2
+        weaponGui = Instance.new("ScreenGui")
+        weaponGui.Name = "WeaponEditor"
+        weaponGui.ResetOnSpawn = false
+        weaponGui.Parent = playerGui
+        local frame = Instance.new("Frame", weaponGui)
+        frame.Size = UDim2.new(0, 270, 0, 330)
+        frame.Position = UDim2.new(0, 40, 0.5, -165)
+        frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+        frame.Active = true
+        frame.Draggable = true
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+        local title = Instance.new("TextLabel", frame)
+        title.Size = UDim2.new(1,0,0,30)
+        title.Text = "MM2 Weapon Editor"
+        title.TextColor3 = Color3.new(1,1,1)
+        title.BackgroundTransparency = 1
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 14
+        local function getGrip()
+            local char = player.Character
+            if not char then return end
+            local arm = char:FindFirstChild("RightHand") or char:FindFirstChild("Right Arm")
+            if not arm then return end
+            for _,v in pairs(arm:GetChildren()) do
+                if (v:IsA("Weld") or v:IsA("Motor6D")) and (v.Name == "RightGrip" or v.Name == "Grip") then
+                    return v
+                end
+            end
+        end
+        local offset = CFrame.new()
+        local originalC0 = nil
+        local function apply()
+            local grip = getGrip()
+            if not grip then return end
+            if not originalC0 then originalC0 = grip.C0 end
+            grip.C0 = originalC0 * offset
+        end
+        local function btn(text, x, y, func)
+            local b = Instance.new("TextButton", frame)
+            b.Size = UDim2.new(0, 60, 0, 30)
+            b.Position = UDim2.new(0, x, 0, y)
+            b.Text = text
+            b.Font = Enum.Font.Gotham
+            b.TextSize = 12
+            b.TextColor3 = Color3.new(1,1,1)
+            b.BackgroundColor3 = Color3.fromRGB(35,35,35)
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+            b.MouseButton1Click:Connect(func)
+        end
+        btn("-X", 10, 40, function() offset *= CFrame.new(-MOVE_STEP,0,0) apply() end)
+        btn("+X", 80, 40, function() offset *= CFrame.new(MOVE_STEP,0,0) apply() end)
+        btn("-Y", 10, 75, function() offset *= CFrame.new(0,-MOVE_STEP,0) apply() end)
+        btn("+Y", 80, 75, function() offset *= CFrame.new(0,MOVE_STEP,0) apply() end)
+        btn("-Z", 10, 110, function() offset *= CFrame.new(0,0,-MOVE_STEP) apply() end)
+        btn("+Z", 80, 110, function() offset *= CFrame.new(0,0,MOVE_STEP) apply() end)
+        btn("🔒 LOCK", 150, 40, function() end)
+        btn("↺ Reset", 150, 80, function() offset = CFrame.new() apply() end)
+    else
+        if weaponGui then weaponGui:Destroy() weaponGui = nil end
+    end
+end)
+
+-- ==========================================
+-- 2️⃣0️⃣ GAZE EMOTE
+-- ==========================================
+local btnGazeEmote = createButton("Gaze Emote")
+local gazeEmoteEnabled = false
+btnGazeEmote.MouseButton1Click:Connect(function()
+    gazeEmoteEnabled = not gazeEmoteEnabled
+    btnGazeEmote.Text = gazeEmoteEnabled and "Gaze Emote: Enabled" or "Gaze Emote: Disabled"
+    btnGazeEmote.BackgroundColor3 = gazeEmoteEnabled and ENABLED or DISABLED
+    if gazeEmoteEnabled then
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Gaze-emote-74592"))()
+    end
+end)
+
+-- ==========================================
+-- 2️⃣1️⃣ GAE ANIMATION EDITOR
+-- ==========================================
+local btnGAE = createButton("GAE Animation Editor")
+local gaeEnabled = false
+btnGAE.MouseButton1Click:Connect(function()
+    gaeEnabled = not gaeEnabled
+    btnGAE.Text = gaeEnabled and "GAE Animation: Enabled" or "GAE Animation: Disabled"
+    btnGAE.BackgroundColor3 = gaeEnabled and ENABLED or DISABLED
+    if gaeEnabled then
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-GAE-SIMPLIFIED-27193"))()
+    end
+end)
+
+-- ==========================================
+-- 2️⃣2️⃣ SPEED GLITCH
+-- ==========================================
+local btnSpeedGlitch = createButton("Speed Glitch")
+local glitchEnabled = false
+local speedGui = nil
+
+btnSpeedGlitch.MouseButton1Click:Connect(function()
+    glitchEnabled = not glitchEnabled
+    btnSpeedGlitch.Text = glitchEnabled and "Speed Glitch: Enabled" or "Speed Glitch: Disabled"
+    btnSpeedGlitch.BackgroundColor3 = glitchEnabled and ENABLED or DISABLED
+
+    if glitchEnabled then
+        local function getHumanoid()
+            local character = player.Character or player.CharacterAdded:Wait()
+            return character:WaitForChild("Humanoid")
+        end
+        local humanoid = getHumanoid()
+        local baseWalkSpeed = humanoid.WalkSpeed
+        local speedBoost = 350
+        local systemActive = false
+
+        speedGui = Instance.new("ScreenGui")
+        speedGui.Name = "SpeedGlitchGui"
+        speedGui.ResetOnSpawn = false
+        speedGui.Parent = playerGui
+
+        local toggleButton = Instance.new("TextButton")
+        toggleButton.Size = UDim2.new(0, 140, 0, 50)
+        toggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+        toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+        toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        toggleButton.Text = "System: OFF"
+        toggleButton.Font = Enum.Font.GothamBold
+        toggleButton.TextSize = 14
+        toggleButton.Parent = speedGui
+        Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 8)
+        toggleButton.Active = true
+        toggleButton.Draggable = true
+
+        local function updateButton()
+            if systemActive then
+                toggleButton.Text = "System: ON"
+                toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+            else
+                toggleButton.Text = "System: OFF"
+                toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+            end
+        end
+
+        toggleButton.MouseButton1Click:Connect(function()
+            systemActive = not systemActive
+            updateButton()
+            if not systemActive then
+                pcall(function() humanoid.WalkSpeed = baseWalkSpeed end)
+            end
+        end)
+
+        local function connectHumanoid(hum)
+            hum.StateChanged:Connect(function(_, newState)
+                if systemActive then
+                    if newState == Enum.HumanoidStateType.Jumping then
+                        hum.WalkSpeed = baseWalkSpeed + speedBoost
+                    elseif newState == Enum.HumanoidStateType.Landed then
+                        hum.WalkSpeed = baseWalkSpeed
+                    end
+                end
+            end)
+        end
+
+        connectHumanoid(humanoid)
+
+        player.CharacterAdded:Connect(function(char)
+            humanoid = char:WaitForChild("Humanoid")
+            baseWalkSpeed = humanoid.WalkSpeed
+            connectHumanoid(humanoid)
+            if not systemActive then
+                humanoid.WalkSpeed = baseWalkSpeed
+            end
+        end)
+
+        updateButton()
+    else
+        if speedGui then speedGui:Destroy() speedGui = nil end
+    end
+end)
+
+-- ==========================================
+-- 2️⃣3️⃣ GOLDEN BOMB V2
+-- ==========================================
+local btnBombV2 = createButton("Golden Bomb V2")
+local bombV2Enabled = false
+btnBombV2.MouseButton1Click:Connect(function()
+    bombV2Enabled = not bombV2Enabled
+    btnBombV2.Text = bombV2Enabled and "Golden Bomb V2: Enabled" or "Golden Bomb V2: Disabled"
+    btnBombV2.BackgroundColor3 = bombV2Enabled and ENABLED or DISABLED
+    if bombV2Enabled then
+        loadstring(game:HttpGet("https://pastebin.com/raw/wv3yBxk8"))()
+    end
+end)
+
+-- ==========================================
+-- 2️⃣4️⃣ CUSTOM SKIES
+-- ==========================================
+local btnSkyCustom = createButton("Custom Skies")
+local skyCustomEnabled = false
+btnSkyCustom.MouseButton1Click:Connect(function()
+    skyCustomEnabled = not skyCustomEnabled
+    btnSkyCustom.Text = skyCustomEnabled and "Custom Skies: Enabled" or "Custom Skies: Disabled"
+    btnSkyCustom.BackgroundColor3 = skyCustomEnabled and ENABLED or DISABLED
+end)
+
+-- ==========================================
+-- 2️⃣5️⃣ CUSTOM SHIFT
+-- ==========================================
+local btnShiftCustom = createButton("Custom Shift")
+local shiftCustomEnabled = false
+btnShiftCustom.MouseButton1Click:Connect(function()
+    shiftCustomEnabled = not shiftCustomEnabled
+    btnShiftCustom.Text = shiftCustomEnabled and "Custom Shift: Enabled" or "Custom Shift: Disabled"
+    btnShiftCustom.BackgroundColor3 = shiftCustomEnabled and ENABLED or DISABLED
+end)
+
+-- ==========================================
+-- 2️⃣6️⃣ ESP MM2/MMV
+-- ==========================================
+local btnESP = createButton("ESP MM2/MMV")
+local espEnabled = false
+btnESP.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    btnESP.Text = espEnabled and "ESP MM2/MMV: Enabled" or "ESP MM2/MMV: Disabled"
+    btnESP.BackgroundColor3 = espEnabled and ENABLED or DISABLED
+end)
+
+-- ==========================================
+-- 2️⃣7️⃣ WHITE CROSSHAIR ⚪
+-- ==========================================
+local btnCrosshair = createButton("White Crosshair")
+local crosshairEnabled = false
+
+btnCrosshair.MouseButton1Click:Connect(function()
+    crosshairEnabled = not crosshairEnabled
+    btnCrosshair.Text = crosshairEnabled and "White Crosshair: Enabled" or "White Crosshair: Disabled"
+    btnCrosshair.BackgroundColor3 = crosshairEnabled and ENABLED or DISABLED
+
+    if crosshairEnabled then
+        pcall(function()
+            loadstring(game:HttpGet("https://rawgithubusercontent.com/maconhacompresunto230-design/Cross-hair-mm2/refs/heads/main/Script.lua"))()
+        end)
+    end
+end)
+
+-- ==========================================
+-- 2️⃣8️⃣ REMOVE LIGHTING (OLD GRAPHIC) 🕹️
+-- ==========================================
+local btnRemoveLight = createButton("Remove Lighting")
+local removeLightEnabled = false
+
+btnRemoveLight.MouseButton1Click:Connect(function()
+    removeLightEnabled = not removeLightEnabled
+    btnRemoveLight.Text = removeLightEnabled and "Remove Lighting: Enabled" or "Remove Lighting: Disabled"
+    btnRemoveLight.BackgroundColor3 = removeLightEnabled and ENABLED or DISABLED
+
+    if removeLightEnabled then
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/ZoeWarOnTop/Old-Graphic/refs/heads/main/Qualidade-Antiga"))()
+        end)
+    end
+end)
+
+-- ==========================================
+-- 2️⃣9️⃣ EXTRA CNP 🌸
+-- ==========================================
+local btnExtraCNP = createButton("Extra CNP")
+local extraCNPEnabled = false
+
+btnExtraCNP.MouseButton1Click:Connect(function()
+    extraCNPEnabled = not extraCNPEnabled
+    btnExtraCNP.Text = extraCNPEnabled and "Extra CNP: Enabled" or "Extra CNP: Disabled"
+    btnExtraCNP.BackgroundColor3 = extraCNPEnabled and ENABLED or DISABLED
+
+    if extraCNPEnabled then
+        pcall(function()
+            loadstring(game:HttpGet("https://pastefy.app/IOnZBrdF/raw"))()
+        end)
+    end
+end)
+
+print("✅ PETROVA PANEL WITH SCROLLING LOADED SUCCESSFULLY!")
